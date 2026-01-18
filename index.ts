@@ -33,15 +33,13 @@ async function cache(req: Request, res: Response, next: NextFunction) {
   try {
     const { username } = req.params;
 
-    redis.get(username as string, (err, data) => {
-      if (err) throw err;
+    const data = await redis.get(username as string);
 
-      if (data) {
-        res.status(200).send(setResponse(username as string, data));
-      } else {
-        next();
-      }
-    });
+    if (data) {
+      res.status(200).send(setResponse(username as string, data));
+    } else {
+      next();
+    }
   } catch (err) {
     console.error(err);
     res.status(500);
