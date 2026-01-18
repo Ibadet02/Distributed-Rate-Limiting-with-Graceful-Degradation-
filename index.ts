@@ -46,7 +46,28 @@ async function cache(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-app.get("/repos/:username", cache, getRepos);
+async function rateLimiter(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userIp = req.ip || "anonymous";
+    const currentTime = Date.now();
+
+    await redis.zremrangebyscore(userIp, 0, currentTime - 10000);
+
+    const requestCount = await redis.zcard(userIp);
+
+    if (requestCount > 5) {
+      return res.status(429).send("Too many requests");
+    } else {
+      await redis.zadd(userIp, currentTime, currentTime.toString());
+      next();
+    }
+  } catch (err) {
+    console.error("Error happened: ", err);
+    next();
+  }
+}
+
+app.get("/repos/:username", rateLimiter, cache, getRepos);
 
 app.listen(3000, () => {
   console.log(`Listening to port 3000`);
